@@ -20,7 +20,7 @@ export async function getPhotos(): Promise<Photo[]> {
     // Return mock data with varied sizes
 
     return [
-        {id: "1", src: "/DSCF5311.jpg", },
+        {id: "1", src: "DSCF5311.jpg", },
     ]
 }
 
