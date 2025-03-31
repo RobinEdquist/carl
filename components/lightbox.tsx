@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import {useCallback, useEffect, useState} from "react"
 import Image from "next/image"
 import { X, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import type { Photo } from "@/types/photo"
-import { formatExifData } from "@/lib/exif"
+import exifr from 'exifr'
 
 interface LightboxProps {
   photo: Photo
@@ -15,6 +15,8 @@ interface LightboxProps {
 
 export default function Lightbox({ photo, onClose }: LightboxProps) {
   const [isOpen, setIsOpen] = useState(true)
+
+  const [exifData, setExifData] = useState<any>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,6 +41,26 @@ export default function Lightbox({ photo, onClose }: LightboxProps) {
     }, 300)
   }
 
+  const MemoizedImage = useCallback(() => {
+    return <Image
+        onLoad={async (ev) => {
+
+          const img = ev.currentTarget
+          const response = await fetch(img.src);
+          const blob = await response.blob();
+          const metadata = await exifr.parse(blob);
+          console.log('EXIF data:', metadata);
+          setExifData(metadata);
+        }}
+        src={photo.src || "/placeholder.svg"}
+        alt={photo.title || "Photograph by Carl Hjerpe"}
+        width={photo.width || 1200}
+        height={photo.height || 800}
+        className="max-h-[85vh] max-w-[85vw] w-auto h-auto object-contain"
+        priority
+    />
+  }, [])
+
   return (
     <div
       className={`fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 ${
@@ -48,14 +70,7 @@ export default function Lightbox({ photo, onClose }: LightboxProps) {
     >
       <div className="relative max-w-[90vw] max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="relative aspect-auto">
-          <Image
-            src={photo.src || "/placeholder.svg"}
-            alt={photo.title || "Photograph by Carl Hjerpe"}
-            width={photo.width || 1200}
-            height={photo.height || 800}
-            className="max-h-[85vh] max-w-[85vw] w-auto h-auto object-contain"
-            priority
-          />
+          <MemoizedImage />
         </div>
 
         <Button
@@ -80,20 +95,20 @@ export default function Lightbox({ photo, onClose }: LightboxProps) {
                 <span className="sr-only">Image Information</span>
               </Button>
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent className={"pr-0"}>
               <SheetHeader>
                 <SheetTitle className="text-xl font-medium">Image Information</SheetTitle>
               </SheetHeader>
-              <div className="mt-6 space-y-4">
-                {photo.exif ? (
-                  <div className="space-y-2">
-                    {Object.entries(formatExifData(photo.exif)).map(([key, value]) => (
-                      <div key={key} className="grid grid-cols-2 gap-2">
-                        <div className="text-sm font-medium">{key}</div>
-                        <div className="text-sm text-muted-foreground font-light">{value}</div>
-                      </div>
+              <div className="mt-6 space-y-4 max-h-full overflow-y-auto pb-16">
+                {exifData ? (
+                  <ul className="space-y-2">
+                    {Object.entries(exifData).map(([key, value]) => (
+                      <li key={key} className="grid grid-cols-2 gap-2">
+                        <p className="text-sm font-medium overflow-hidden overflow-ellipsis">{key}</p>
+                        <p className="text-sm text-muted-foreground font-light overflow-hidden overflow-ellipsis">{value?.toString()}</p>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
                   <p className="text-muted-foreground font-light">No EXIF data available</p>
                 )}
